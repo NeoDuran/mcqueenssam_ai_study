@@ -1627,7 +1627,87 @@
             </div>
         </section>
         
-        <!-- Section 9: 나눔의 선순환 -->
+        <!-- Section 9-A: 응원의 한마디 (방명록) -->
+        <section id="guestbook" class="guestbook-section">
+            <div class="container">
+                <!-- 섹션 헤더 -->
+                <div class="section-header">
+                    <h2 class="section-title">💬 응원의 한마디</h2>
+                    <p class="section-subtitle">맥퀸쌤에게 전하는 따뜻한 메시지</p>
+                </div>
+                
+                <!-- 메시지 작성 폼 -->
+                <div class="guestbook-form-container">
+                    <form id="guestbookForm" class="guestbook-form">
+                        <div class="form-group">
+                            <input 
+                                type="text" 
+                                id="nickname" 
+                                name="nickname"
+                                placeholder="닉네임 (예: 김선생, 이교사)" 
+                                maxlength="50"
+                                required
+                                class="form-input"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <textarea 
+                                id="message" 
+                                name="message"
+                                placeholder="맥퀸쌤께 전하고 싶은 응원의 메시지를 남겨주세요 (최대 200자)"
+                                maxlength="200"
+                                required
+                                class="form-textarea"
+                                rows="4"
+                            ></textarea>
+                            <div class="char-count">
+                                <span id="charCount">0</span> / 200자
+                            </div>
+                        </div>
+                        <button type="submit" class="submit-button">
+                            응원 남기기 💌
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- 메시지 목록 -->
+                <div class="guestbook-messages">
+                    <h3 class="messages-title">
+                        실시간 응원 메시지 
+                        <span class="message-count" id="messageCount">0</span>
+                    </h3>
+                    
+                    <!-- 로딩 표시 -->
+                    <div id="loadingSpinner" class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>메시지를 불러오는 중...</p>
+                    </div>
+                    
+                    <!-- 메시지 그리드 -->
+                    <div id="messagesGrid" class="messages-grid">
+                        <!-- 메시지가 JavaScript로 동적 추가됩니다 -->
+                    </div>
+                    
+                    <!-- 더보기 버튼 -->
+                    <div class="load-more-container">
+                        <button id="loadMoreBtn" class="load-more-btn" style="display: none;">
+                            더 많은 메시지 보기 ↓
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 성공 토스트 -->
+        <div id="successToast" class="toast">
+            ✅ 응원 메시지가 등록되었습니다!
+        </div>
+        <!-- 에러 토스트 -->
+        <div id="errorToast" class="toast toast-error">
+            ⚠️ 오류가 발생했습니다. 다시 시도해주세요.
+        </div>
+        
+        <!-- Section 9-B: 나눔의 선순환 -->
         <section class="giving-back-section">
             <div class="container">
                 <!-- 섹션 헤더 -->
@@ -1776,6 +1856,9 @@
                 </a>
             </div>
         </div>
+        
+        <!-- Supabase JS SDK (방명록 기능을 위해 필요) -->
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         
         <!-- JavaScript -->
         <script src="script.js"></script>

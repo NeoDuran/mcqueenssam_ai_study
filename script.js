@@ -1715,3 +1715,313 @@ function initSection9() {
     
     console.log('Section 9 초기화 완료');
 }
+
+/* ========================================
+   방명록 기능 (Supabase)
+======================================== */
+// Supabase 설정
+const SUPABASE_URL = 'https://iecyqoouugwxrrmugylo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY3lxb291dWd3eHJybXVneWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjc3MjAsImV4cCI6MjA3NzQwMzcyMH0.DQvRJugzwiuI-1Fv3KJG-5al5C1ZhGwXko-kd2aF3og';
+
+// Supabase 클라이언트 초기화
+let supabase;
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (error) {
+    console.error('Supabase 초기화 실패:', error);
+}
+
+// 전역 변수
+let currentPage = 0;
+const messagesPerPage = 20;
+let allMessagesLoaded = false;
+let realtimeChannel = null;
+
+// DOM 요소
+const guestbookForm = document.getElementById('guestbookForm');
+const nicknameInput = document.getElementById('nickname');
+const messageInput = document.getElementById('message');
+const charCount = document.getElementById('charCount');
+const messagesGrid = document.getElementById('messagesGrid');
+const loadingSpinner = document.getElementById('loadingSpinner');
+const loadMoreBtn = document.getElementById('loadMoreBtn');
+const successToast = document.getElementById('successToast');
+const errorToast = document.getElementById('errorToast');
+const messageCountSpan = document.getElementById('messageCount');
+
+// 초기화
+if (guestbookForm) {
+    document.addEventListener('DOMContentLoaded', initGuestbook);
+}
+
+function initGuestbook() {
+    // 글자 수 카운터
+    if (messageInput) {
+        messageInput.addEventListener('input', function() {
+            charCount.textContent = this.value.length;
+        });
+    }
+    
+    // 폼 제출
+    if (guestbookForm) {
+        guestbookForm.addEventListener('submit', handleSubmit);
+    }
+    
+    // 더보기 버튼
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', loadMoreMessages);
+    }
+    
+    // 초기 메시지 로드
+    loadMessages();
+    
+    // 실시간 구독
+    subscribeToMessages();
+    
+    // 전체 메시지 개수 로드
+    updateMessageCount();
+}
+
+// 메시지 제출
+async function handleSubmit(e) {
+    e.preventDefault();
+    
+    if (!supabase) {
+        showToastMessage(errorToast, 'Supabase가 초기화되지 않았습니다.');
+        return;
+    }
+    
+    const nickname = nicknameInput.value.trim();
+    const message = messageInput.value.trim();
+    
+    if (!nickname || !message) {
+        showToastMessage(errorToast, '닉네임과 메시지를 모두 입력해주세요.');
+        return;
+    }
+    
+    // 버튼 비활성화
+    const submitBtn = guestbookForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '등록 중...';
+    
+    try {
+        const { data, error } = await supabase
+            .from('guestbook')
+            .insert([
+                { 
+                    nickname: nickname,
+                    message: message 
+                }
+            ]);
+        
+        if (error) throw error;
+        
+        // 성공
+        showToastMessage(successToast, '응원 메시지가 등록되었습니다!');
+        guestbookForm.reset();
+        charCount.textContent = '0';
+        
+        // 메시지 개수 업데이트
+        updateMessageCount();
+        
+    } catch (error) {
+        console.error('Error inserting message:', error);
+        showToastMessage(errorToast, '오류가 발생했습니다. 다시 시도해주세요.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '응원 남기기 💌';
+    }
+}
+
+// 메시지 로드
+async function loadMessages(reset = true) {
+    if (!supabase) return;
+    
+    if (reset) {
+        currentPage = 0;
+        messagesGrid.innerHTML = '';
+        allMessagesLoaded = false;
+    }
+    
+    if (loadingSpinner) loadingSpinner.style.display = 'block';
+    
+    try {
+        const from = currentPage * messagesPerPage;
+        const to = from + messagesPerPage - 1;
+        
+        const { data, error } = await supabase
+            .from('guestbook')
+            .select('*')
+            .eq('is_visible', true)
+            .order('created_at', { ascending: false })
+            .range(from, to);
+        
+        if (error) throw error;
+        
+        if (data.length === 0) {
+            if (currentPage === 0) {
+                showEmptyState();
+            }
+            allMessagesLoaded = true;
+            if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+        } else {
+            data.forEach(message => {
+                appendMessage(message);
+            });
+            
+            currentPage++;
+            
+            // 더보기 버튼 표시 여부
+            if (data.length < messagesPerPage) {
+                allMessagesLoaded = true;
+                if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+            } else {
+                if (loadMoreBtn) loadMoreBtn.style.display = 'block';
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading messages:', error);
+        showToastMessage(errorToast, '메시지를 불러오는데 실패했습니다.');
+    } finally {
+        if (loadingSpinner) loadingSpinner.style.display = 'none';
+    }
+}
+
+// 더 많은 메시지 로드
+function loadMoreMessages() {
+    if (!allMessagesLoaded) {
+        loadMessages(false);
+    }
+}
+
+// 메시지 카드 생성 및 추가
+function appendMessage(message, prepend = false) {
+    if (!messagesGrid) return;
+    
+    const card = document.createElement('div');
+    card.className = 'message-card';
+    card.dataset.id = message.id;
+    
+    const timeAgo = getTimeAgo(new Date(message.created_at));
+    
+    card.innerHTML = `
+        <div class="message-header">
+            <span class="message-nickname">${escapeHtml(message.nickname)}</span>
+            <span class="message-time">${timeAgo}</span>
+        </div>
+        <p class="message-text">${escapeHtml(message.message)}</p>
+    `;
+    
+    if (prepend) {
+        messagesGrid.insertBefore(card, messagesGrid.firstChild);
+    } else {
+        messagesGrid.appendChild(card);
+    }
+}
+
+// 실시간 구독
+function subscribeToMessages() {
+    if (!supabase) return;
+    
+    // 기존 채널이 있으면 정리
+    if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+    }
+    
+    realtimeChannel = supabase
+        .channel('guestbook-changes')
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'guestbook'
+            },
+            (payload) => {
+                // 새 메시지를 맨 위에 추가
+                if (payload.new && payload.new.is_visible) {
+                    appendMessage(payload.new, true);
+                    updateMessageCount();
+                }
+            }
+        )
+        .subscribe();
+}
+
+// 전체 메시지 개수 업데이트
+async function updateMessageCount() {
+    if (!supabase || !messageCountSpan) return;
+    
+    try {
+        const { count, error } = await supabase
+            .from('guestbook')
+            .select('*', { count: 'exact', head: true })
+            .eq('is_visible', true);
+        
+        if (error) throw error;
+        
+        messageCountSpan.textContent = count || 0;
+    } catch (error) {
+        console.error('Error counting messages:', error);
+    }
+}
+
+// 빈 상태 표시
+function showEmptyState() {
+    if (!messagesGrid) return;
+    
+    messagesGrid.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <p class="empty-state-text">아직 작성된 응원 메시지가 없습니다.<br>첫 번째 응원의 주인공이 되어주세요!</p>
+        </div>
+    `;
+}
+
+// 토스트 표시
+function showToastMessage(toastElement, message) {
+    if (!toastElement) return;
+    
+    if (message) {
+        toastElement.textContent = message;
+    }
+    toastElement.classList.add('show');
+    
+    setTimeout(() => {
+        toastElement.classList.remove('show');
+    }, 3000);
+}
+
+// 시간 경과 표시 (상대 시간)
+function getTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + '년 전';
+    
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + '개월 전';
+    
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + '일 전';
+    
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + '시간 전';
+    
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + '분 전';
+    
+    return '방금 전';
+}
+
+// HTML 이스케이프 (XSS 방지)
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
