@@ -1077,7 +1077,12 @@ function initSection5() {
     
     // 스크롤 애니메이션 (Intersection Observer)
     const basicCourseSection = document.querySelector('.basic-course');
-    
+
+    if (basicCourseSection) {
+        // 스크립트 오류 발생 여부와 관계없이 기본 섹션이 항상 보이도록 처리
+        basicCourseSection.classList.add('visible');
+    }
+
     if ('IntersectionObserver' in window && basicCourseSection) {
         const courseObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -1089,7 +1094,7 @@ function initSection5() {
             threshold: 0.2,
             rootMargin: '0px 0px -100px 0px'
         });
-        
+
         courseObserver.observe(basicCourseSection);
     }
     
