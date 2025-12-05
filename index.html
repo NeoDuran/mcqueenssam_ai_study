@@ -1828,7 +1828,7 @@
         <!-- 기본과정 인증 모달 -->
         <div id="unlockModal" class="modal">
             <div class="modal-content">
-                <span class="close">&times;</span>
+                <span class="close" onclick="document.getElementById('unlockModal').style.display='none'">&times;</span>
                 <h3>기본과정 영상 잠금 해제</h3>
                 <p>챌린지에 참여하신 분들께 제공된 인증 코드를 입력해주세요</p>
                 <input type="text" id="authCode" placeholder="인증 코드 입력" autocomplete="off">
@@ -1844,7 +1844,7 @@
         <!-- 심화과정 인증 모달 -->
         <div id="unlockModalAdvanced" class="modal">
             <div class="modal-content">
-                <span class="close-advanced">&times;</span>
+                <span class="close-advanced" onclick="document.getElementById('unlockModalAdvanced').style.display='none'">&times;</span>
                 <h3>심화과정 영상 잠금 해제</h3>
                 <p>심화과정에 참여하신 분들께 제공된 인증 코드를 입력해주세요</p>
                 <input type="text" id="authCodeAdvanced" placeholder="인증 코드 입력" autocomplete="off">

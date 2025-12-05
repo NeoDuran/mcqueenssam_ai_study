@@ -864,6 +864,126 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
     });
 }
 
+/**
+ * 잠금 해제 안내 메시지 표시 및 인증 버튼으로 스크롤
+ * @param {string} courseType - 'basic' 또는 'advanced'
+ */
+function showUnlockGuide(courseType) {
+    // 인증 버튼 찾기
+    const unlockBtn = courseType === 'basic' 
+        ? document.querySelector('.unlock-btn')
+        : document.querySelector('.unlock-btn-advanced');
+    
+    if (!unlockBtn) {
+        console.error(`${courseType} 과정 인증 버튼을 찾을 수 없습니다.`);
+        return;
+    }
+    
+    // 인증 버튼으로 부드럽게 스크롤
+    unlockBtn.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+    });
+    
+    // 버튼 하이라이트 효과
+    unlockBtn.style.animation = 'none';
+    setTimeout(() => {
+        unlockBtn.style.animation = 'pulse 1.5s ease-in-out 3';
+    }, 10);
+    
+    // 토스트 메시지 표시
+    const courseName = courseType === 'basic' ? '기본과정' : '심화과정';
+    showUnlockToast(`🔒 ${courseName} 자료는 인증이 필요합니다.\n하단의 "인증코드로 전체 자료 열기" 버튼을 클릭해주세요.`);
+    
+    console.log(`${courseType} 과정 잠금 해제 안내 표시`);
+}
+
+/**
+ * 잠금 해제 안내 토스트 표시
+ * @param {string} message - 표시할 메시지
+ */
+function showUnlockToast(message) {
+    // 기존 토스트가 있으면 제거
+    const existingToast = document.getElementById('unlockGuideToast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    // 토스트 생성
+    const toast = document.createElement('div');
+    toast.id = 'unlockGuideToast';
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+        z-index: 10000;
+        font-size: 0.95rem;
+        font-weight: 500;
+        text-align: center;
+        white-space: pre-line;
+        max-width: 90%;
+        animation: slideUpFade 0.4s ease-out;
+    `;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // 4초 후 자동 제거
+    setTimeout(() => {
+        toast.style.animation = 'slideDownFade 0.4s ease-in forwards';
+        setTimeout(() => {
+            toast.remove();
+        }, 400);
+    }, 4000);
+}
+
+// 토스트 애니메이션 스타일 추가
+if (!document.getElementById('unlock-toast-styles')) {
+    const style = document.createElement('style');
+    style.id = 'unlock-toast-styles';
+    style.textContent = `
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        @keyframes slideDownFade {
+            from {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 8px 40px rgba(102, 126, 234, 0.6);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // Section 5: 기본과정 21개 미션 초기화
 function initSection5() {
     // API URL
@@ -896,7 +1016,7 @@ function initSection5() {
     const lockedVideos = document.querySelectorAll('.video-link.locked');
     const lockedDocs = document.querySelectorAll('.doc-link.locked');
     const modal = document.getElementById('unlockModal');
-    const closeBtn = document.querySelector('.close');
+    const closeBtn = modal ? modal.querySelector('.close') : null;
     const unlockBtn = document.querySelector('.unlock-btn');
     const submitCodeBtn = document.getElementById('submitCode');
     const authCodeInput = document.getElementById('authCode');
@@ -922,7 +1042,7 @@ function initSection5() {
         }
     }
     
-    // 잠긴 영상과 미션지 클릭 방지 (링크 비활성화) - 1,2,3번 미션 제외
+    // 잠긴 영상과 미션지 클릭 시 안내 메시지 표시 - 1,2,3번 미션 제외
     lockedVideos.forEach(link => {
         const missionRow = link.closest('.mission-row');
         const missionNum = missionRow.dataset.mission;
@@ -935,7 +1055,7 @@ function initSection5() {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             console.log('Section 5 잠긴 영상 클릭 - 인증 필요');
-            // 모달을 열지 않고 클릭만 방지
+            showUnlockGuide('basic');
         });
     });
     
@@ -951,7 +1071,7 @@ function initSection5() {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             console.log('Section 5 잠긴 미션지 클릭 - 인증 필요');
-            // 모달을 열지 않고 클릭만 방지
+            showUnlockGuide('basic');
         });
     });
     
@@ -963,24 +1083,36 @@ function initSection5() {
         });
     }
     
-    // 모달 닫기 이벤트
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeModal);
+    // 모달 닫기 이벤트 - X 버튼 (백업용 - HTML에 onclick도 있음)
+    if (closeBtn && modal) {
+        // 기존 onclick 제거하고 새로 추가
+        closeBtn.onclick = function(e) {
+            console.log('Section 5 기본과정 모달 X 버튼 클릭');
+            modal.style.display = 'none';
+        };
+        console.log('Section 5 X 버튼 onclick 등록 완료:', closeBtn);
+    } else {
+        console.error('Section 5 closeBtn 또는 modal을 찾을 수 없음:', { closeBtn, modal });
     }
     
     // 모달 배경 클릭 시 닫기
-    window.addEventListener('click', function(e) {
-        if (e.target === modal) {
-            closeModal();
-        }
-    });
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                console.log('Section 5 기본과정 모달 배경 클릭');
+                closeModal();
+            }
+        });
+    }
     
     // ESC 키로 모달 닫기
-    document.addEventListener('keydown', function(e) {
+    const handleEscapeKey = function(e) {
         if (e.key === 'Escape' && modal && modal.style.display === 'block') {
+            console.log('Section 5 기본과정 모달 ESC 키 닫기');
             closeModal();
         }
-    });
+    };
+    document.addEventListener('keydown', handleEscapeKey);
     
     // 인증 코드 검증
     if (submitCodeBtn) {
@@ -998,15 +1130,26 @@ function initSection5() {
             if (errorMessage) errorMessage.classList.remove('show');
             
             try {
-                const url = `${SCRIPT_URL}?code=${encodeURIComponent(code)}&type=basic`;
-                console.log('Section 5 인증 API 호출:', url);
+                // 디버그 모드로 더 많은 정보 요청
+                const url = `${SCRIPT_URL}?code=${encodeURIComponent(code)}&type=basic&debug=true`;
+                console.log('=== Section 5 인증 API 호출 ===');
+                console.log('URL:', url);
+                console.log('입력된 코드:', code);
+                console.log('현재 시간 (브라우저):', new Date().toISOString());
+                console.log('현재 시간 (로컬):', new Date().toString());
                 
                 const response = await fetch(url);
                 const result = await response.json();
                 
-                console.log('Section 5 인증 결과:', result);
+                console.log('=== Section 5 인증 API 응답 ===');
+                console.log('전체 응답:', JSON.stringify(result, null, 2));
+                console.log('valid:', result.valid);
+                console.log('message:', result.message);
+                console.log('data:', result.data);
+                console.log('expiryDate (direct):', result.expiryDate);
+                console.log('expiryDate (from data):', result.data?.expiryDate);
                 
-                if (result.valid) {
+                if (result.valid === true) {
                     // 인증 성공
                     unlockAllVideos();
                     
@@ -1014,14 +1157,27 @@ function initSection5() {
                     // localStorage.setItem('basicCourseUnlocked', 'true');
                     // localStorage.setItem('basicCourseCode', code);
                     
-                    alert(`기본과정 영상이 잠금 해제되었습니다!\n만료일: ${result.data?.expiryDate || '정보 없음'}\n\n※ 페이지 새로고침 시 다시 잠금됩니다.`);
+                    const expiryDate = result.data?.expiryDate || result.expiryDate || '정보 없음';
+                    console.log('사용할 만료일:', expiryDate);
+                    alert(`✅ 기본과정 영상이 잠금 해제되었습니다!\n\n만료일: ${expiryDate}\n\n※ 페이지 새로고침 시 다시 잠금됩니다.`);
                     closeModal();
                 } else {
-                    // 인증 실패
-                    showError(result.message || '올바르지 않은 인증 코드입니다.');
+                    // 인증 실패 - 더 명확한 오류 메시지 표시
+                    const errorMsg = result.message || '올바르지 않은 인증 코드입니다.';
+                    console.error('=== 인증 실패 ===');
+                    console.error('실패 메시지:', errorMsg);
+                    console.error('입력 코드:', code);
+                    console.error('응답 전체:', result);
+                    console.error('현재 시간:', new Date().toISOString());
+                    
+                    // 개발자가 확인할 수 있도록 alert에도 상세 정보 표시
+                    alert(`❌ 인증 실패\n\n${errorMsg}\n\n개발자 도구 콘솔에서 상세 정보를 확인하세요.`);
+                    showError(errorMsg);
                 }
             } catch (error) {
-                console.error('Section 5 인증 오류:', error);
+                console.error('=== Section 5 인증 오류 ===');
+                console.error('오류:', error);
+                console.error('오류 상세:', error.message, error.stack);
                 showError('인증 중 오류가 발생했습니다. 다시 시도해주세요.');
             } finally {
                 submitCodeBtn.disabled = false;
@@ -1134,7 +1290,7 @@ function initSection6() {
     
     // 심화과정 모달 관련 요소들
     const modalAdvanced = document.getElementById('unlockModalAdvanced');
-    const closeBtnAdvanced = document.querySelector('.close-advanced');
+    const closeBtnAdvanced = modalAdvanced ? modalAdvanced.querySelector('.close-advanced') : null;
     const unlockBtnAdvanced = document.querySelector('.unlock-btn-advanced');
     const submitCodeBtnAdvanced = document.getElementById('submitCodeAdvanced');
     const authCodeInputAdvanced = document.getElementById('authCodeAdvanced');
@@ -1146,21 +1302,21 @@ function initSection6() {
         const lockedVideos = advancedSection.querySelectorAll('.video-link.locked');
         const lockedDocs = advancedSection.querySelectorAll('.doc-link.locked');
         
-        // 잠긴 영상 링크 클릭 방지
+        // 잠긴 영상 링크 클릭 시 안내 메시지 표시
         lockedVideos.forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 console.log('Section 6 잠긴 영상 클릭 - 인증 필요');
-                // 모달을 열지 않고 단순히 클릭만 방지
+                showUnlockGuide('advanced');
             });
         });
         
-        // 잠긴 미션지 링크 클릭 방지
+        // 잠긴 미션지 링크 클릭 시 안내 메시지 표시
         lockedDocs.forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
                 console.log('Section 6 잠긴 미션지 클릭 - 인증 필요');
-                // 모달을 열지 않고 단순히 클릭만 방지
+                showUnlockGuide('advanced');
             });
         });
     }
@@ -1187,16 +1343,35 @@ function initSection6() {
         unlockBtnAdvanced.addEventListener('click', openModalAdvanced);
     }
     
-    if (closeBtnAdvanced) {
-        closeBtnAdvanced.addEventListener('click', closeModalAdvanced);
+    if (closeBtnAdvanced && modalAdvanced) {
+        // 기존 onclick 제거하고 새로 추가
+        closeBtnAdvanced.onclick = function(e) {
+            console.log('Section 6 심화과정 모달 X 버튼 클릭');
+            modalAdvanced.style.display = 'none';
+        };
+        console.log('Section 6 X 버튼 onclick 등록 완료:', closeBtnAdvanced);
+    } else {
+        console.error('Section 6 closeBtnAdvanced 또는 modalAdvanced를 찾을 수 없음:', { closeBtnAdvanced, modalAdvanced });
     }
     
     // 모달 외부 클릭 시 닫기
-    window.addEventListener('click', function(e) {
-        if (e.target === modalAdvanced) {
+    if (modalAdvanced) {
+        modalAdvanced.addEventListener('click', function(e) {
+            if (e.target === modalAdvanced) {
+                console.log('Section 6 심화과정 모달 배경 클릭');
+                closeModalAdvanced();
+            }
+        });
+    }
+    
+    // ESC 키로 모달 닫기
+    const handleEscapeKeyAdvanced = function(e) {
+        if (e.key === 'Escape' && modalAdvanced && modalAdvanced.style.display === 'block') {
+            console.log('Section 6 심화과정 모달 ESC 키 닫기');
             closeModalAdvanced();
         }
-    });
+    };
+    document.addEventListener('keydown', handleEscapeKeyAdvanced);
     
     // 인증 코드 검증 함수
     async function verifyAdvancedCode(code) {
@@ -1324,9 +1499,21 @@ function initSection6() {
             if (errorMessageAdvanced) errorMessageAdvanced.classList.remove('show');
             
             try {
+                console.log('=== Section 6 심화과정 인증 시작 ===');
+                console.log('입력된 코드:', code);
+                console.log('현재 시간:', new Date().toISOString());
+                
                 const result = await verifyAdvancedCode(code);
                 
-                if (result.valid) {
+                console.log('=== Section 6 인증 API 응답 ===');
+                console.log('전체 응답:', JSON.stringify(result, null, 2));
+                console.log('valid:', result.valid);
+                console.log('message:', result.message);
+                console.log('data:', result.data);
+                console.log('expiryDate (direct):', result.expiryDate);
+                console.log('expiryDate (from data):', result.data?.expiryDate);
+                
+                if (result.valid === true) {
                     // 인증 성공
                     unlockAllAdvancedContent();
                     
@@ -1334,14 +1521,27 @@ function initSection6() {
                     // localStorage.setItem('advancedCourseUnlocked', 'true');
                     // localStorage.setItem('advancedCourseCode', code);
                     
-                    alert(`심화과정 영상이 잠금 해제되었습니다!\n만료일: ${result.data?.expiryDate || '정보 없음'}\n\n※ 페이지 새로고침 시 다시 잠금됩니다.`);
+                    const expiryDate = result.data?.expiryDate || result.expiryDate || '정보 없음';
+                    console.log('사용할 만료일:', expiryDate);
+                    alert(`✅ 심화과정 영상이 잠금 해제되었습니다!\n\n만료일: ${expiryDate}\n\n※ 페이지 새로고침 시 다시 잠금됩니다.`);
                     closeModalAdvanced();
                 } else {
-                    // 인증 실패
-                    showErrorAdvanced(result.message || '올바르지 않은 인증 코드입니다.');
+                    // 인증 실패 - 더 명확한 오류 메시지 표시
+                    const errorMsg = result.message || '올바르지 않은 인증 코드입니다.';
+                    console.error('=== 심화과정 인증 실패 ===');
+                    console.error('실패 메시지:', errorMsg);
+                    console.error('입력 코드:', code);
+                    console.error('응답 전체:', result);
+                    console.error('현재 시간:', new Date().toISOString());
+                    
+                    // 개발자가 확인할 수 있도록 alert에도 상세 정보 표시
+                    alert(`❌ 인증 실패\n\n${errorMsg}\n\n개발자 도구 콘솔에서 상세 정보를 확인하세요.`);
+                    showErrorAdvanced(errorMsg);
                 }
             } catch (error) {
-                console.error('Section 6 심화과정 인증 오류:', error);
+                console.error('=== Section 6 심화과정 인증 오류 ===');
+                console.error('오류:', error);
+                console.error('오류 상세:', error.message, error.stack);
                 showErrorAdvanced('인증 중 오류가 발생했습니다. 다시 시도해주세요.');
             } finally {
                 submitCodeBtnAdvanced.disabled = false;
