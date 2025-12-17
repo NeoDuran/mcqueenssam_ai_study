@@ -2185,14 +2185,15 @@ async function updateMessageCount() {
     if (!supabaseClient || !messageCountSpan) return;
     
     try {
-        const { count, error } = await supabaseClient
+        const { data, count, error } = await supabaseClient
             .from('guestbook')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('is_visible', true);
         
         if (error) throw error;
         
-        messageCountSpan.textContent = count || 0;
+        console.log('메시지 개수:', count);
+        messageCountSpan.textContent = count ?? 0;
     } catch (error) {
         console.error('Error counting messages:', error);
     }
