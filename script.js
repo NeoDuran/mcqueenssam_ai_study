@@ -430,6 +430,13 @@ function initSection3() {
     const ctaSection = document.querySelector('.cta-section');
     const ctaButton = document.querySelector('.why-mcqueen .cta-button');
     
+    // 스크립트 오류 발생 여부와 관계없이 카드가 항상 보이도록 처리
+    featureCards.forEach(card => {
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+        card.style.transition = 'all 0.6s ease';
+    });
+    
     // Intersection Observer로 스크롤 시 카드 순차 등장
     if ('IntersectionObserver' in window && featureCards.length > 0) {
         const cardObserver = new IntersectionObserver((entries) => {
@@ -448,13 +455,17 @@ function initSection3() {
             rootMargin: '0px 0px -50px 0px'
         });
         
-        // 초기 상태 설정 및 관찰 시작
+        // 관찰 시작
         featureCards.forEach(card => {
-            card.style.opacity = '0';
-            card.style.transform = 'translateY(40px)';
-            card.style.transition = 'all 0.6s ease';
             cardObserver.observe(card);
         });
+    }
+    
+    // CTA 섹션 - 항상 보이도록 처리
+    if (ctaSection) {
+        ctaSection.style.opacity = '1';
+        ctaSection.style.transform = 'translateY(0) scale(1)';
+        ctaSection.style.transition = 'all 0.8s ease';
     }
     
     // CTA 섹션 애니메이션
@@ -473,10 +484,6 @@ function initSection3() {
             rootMargin: '0px 0px -100px 0px'
         });
         
-        // CTA 섹션 초기 상태
-        ctaSection.style.opacity = '0';
-        ctaSection.style.transform = 'translateY(30px) scale(0.95)';
-        ctaSection.style.transition = 'all 0.8s ease';
         ctaObserver.observe(ctaSection);
     }
     
@@ -583,6 +590,11 @@ function initSection4() {
     }
     
     // 스크롤 애니메이션 (Intersection Observer)
+    // 스크립트 오류 발생 여부와 관계없이 섹션이 항상 보이도록 처리
+    if (storySection) {
+        storySection.classList.add('visible');
+    }
+    
     if ('IntersectionObserver' in window && storySection) {
         const storyObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -1929,9 +1941,10 @@ const SUPABASE_URL = 'https://iecyqoouugwxrrmugylo.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllY3lxb291dWd3eHJybXVneWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4Mjc3MjAsImV4cCI6MjA3NzQwMzcyMH0.DQvRJugzwiuI-1Fv3KJG-5al5C1ZhGwXko-kd2aF3og';
 
 // Supabase 클라이언트 초기화
-let supabase;
+let supabaseClient;
 try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Supabase 클라이언트 초기화 성공');
 } catch (error) {
     console.error('Supabase 초기화 실패:', error);
 }
@@ -1942,24 +1955,32 @@ const messagesPerPage = 20;
 let allMessagesLoaded = false;
 let realtimeChannel = null;
 
-// DOM 요소
-const guestbookForm = document.getElementById('guestbookForm');
-const nicknameInput = document.getElementById('nickname');
-const messageInput = document.getElementById('message');
-const charCount = document.getElementById('charCount');
-const messagesGrid = document.getElementById('messagesGrid');
-const loadingSpinner = document.getElementById('loadingSpinner');
-const loadMoreBtn = document.getElementById('loadMoreBtn');
-const successToast = document.getElementById('successToast');
-const errorToast = document.getElementById('errorToast');
-const messageCountSpan = document.getElementById('messageCount');
+// DOM 요소 (initGuestbook에서 초기화)
+let guestbookForm, nicknameInput, messageInput, charCount, messagesGrid;
+let loadingSpinner, loadMoreBtn, successToast, errorToast, messageCountSpan;
 
-// 초기화
-if (guestbookForm) {
-    document.addEventListener('DOMContentLoaded', initGuestbook);
-}
+// 초기화 - DOMContentLoaded에서 실행
+document.addEventListener('DOMContentLoaded', function() {
+    guestbookForm = document.getElementById('guestbookForm');
+    if (guestbookForm) {
+        initGuestbook();
+    }
+});
 
 function initGuestbook() {
+    // DOM 요소 초기화
+    nicknameInput = document.getElementById('nickname');
+    messageInput = document.getElementById('message');
+    charCount = document.getElementById('charCount');
+    messagesGrid = document.getElementById('messagesGrid');
+    loadingSpinner = document.getElementById('loadingSpinner');
+    loadMoreBtn = document.getElementById('loadMoreBtn');
+    successToast = document.getElementById('successToast');
+    errorToast = document.getElementById('errorToast');
+    messageCountSpan = document.getElementById('messageCount');
+    
+    console.log('방명록 초기화 시작, messagesGrid:', messagesGrid);
+    
     // 글자 수 카운터
     if (messageInput) {
         messageInput.addEventListener('input', function() {
@@ -1991,7 +2012,7 @@ function initGuestbook() {
 async function handleSubmit(e) {
     e.preventDefault();
     
-    if (!supabase) {
+    if (!supabaseClient) {
         showToastMessage(errorToast, 'Supabase가 초기화되지 않았습니다.');
         return;
     }
@@ -2010,7 +2031,7 @@ async function handleSubmit(e) {
     submitBtn.textContent = '등록 중...';
     
     try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('guestbook')
             .insert([
                 { 
@@ -2040,11 +2061,16 @@ async function handleSubmit(e) {
 
 // 메시지 로드
 async function loadMessages(reset = true) {
-    if (!supabase) return;
+    if (!supabaseClient) {
+        console.error('Supabase 클라이언트가 초기화되지 않았습니다.');
+        if (loadingSpinner) loadingSpinner.style.display = 'none';
+        showEmptyState();
+        return;
+    }
     
     if (reset) {
         currentPage = 0;
-        messagesGrid.innerHTML = '';
+        if (messagesGrid) messagesGrid.innerHTML = '';
         allMessagesLoaded = false;
     }
     
@@ -2054,7 +2080,7 @@ async function loadMessages(reset = true) {
         const from = currentPage * messagesPerPage;
         const to = from + messagesPerPage - 1;
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('guestbook')
             .select('*')
             .eq('is_visible', true)
@@ -2127,11 +2153,11 @@ function appendMessage(message, prepend = false) {
 
 // 실시간 구독
 function subscribeToMessages() {
-    if (!supabase) return;
+    if (!supabaseClient) return;
     
     // 기존 채널이 있으면 정리
     if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
+        supabaseClient.removeChannel(realtimeChannel);
     }
     
     realtimeChannel = supabase
@@ -2156,10 +2182,10 @@ function subscribeToMessages() {
 
 // 전체 메시지 개수 업데이트
 async function updateMessageCount() {
-    if (!supabase || !messageCountSpan) return;
+    if (!supabaseClient || !messageCountSpan) return;
     
     try {
-        const { count, error } = await supabase
+        const { count, error } = await supabaseClient
             .from('guestbook')
             .select('*', { count: 'exact', head: true })
             .eq('is_visible', true);
