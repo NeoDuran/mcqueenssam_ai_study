@@ -2160,7 +2160,7 @@ function subscribeToMessages() {
         supabaseClient.removeChannel(realtimeChannel);
     }
     
-    realtimeChannel = supabase
+    realtimeChannel = supabaseClient
         .channel('guestbook-changes')
         .on(
             'postgres_changes',
@@ -2185,15 +2185,16 @@ async function updateMessageCount() {
     if (!supabaseClient || !messageCountSpan) return;
     
     try {
-        const { data, count, error } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('guestbook')
-            .select('id', { count: 'exact', head: true })
+            .select('id')
             .eq('is_visible', true);
         
         if (error) throw error;
         
+        const count = data ? data.length : 0;
         console.log('메시지 개수:', count);
-        messageCountSpan.textContent = count ?? 0;
+        messageCountSpan.textContent = count;
     } catch (error) {
         console.error('Error counting messages:', error);
     }
